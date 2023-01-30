@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  database:
+    image: postgres:latest
+    container_name: postgres
+    restart: always
+    env_file: database/.env
+
+    ports:
+      - '5423:5432'
+    volumes:
+      - database_postgres:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: 'rabbitmq:3-management'
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    healthcheck:
+      test: [ "CMD", "rabbitmqctl", "status" ]
+      interval: 5s
+      timeout: 15s
+      retries: 5
+
+  numbers_service:
+    build: ./number-service/
+    ports:
+      - "8080:8080"
+    volumes:
+      - "./number-service/:/app"
+    depends_on:
+      - database
+    links:
+      - "database:database"
+
+  logger:
+    build: ./logger
+    restart: on-failure
+    volumes:
+      - "./logger:/logger"
+    env_file:
+      - logger/app.env
+    depends_on:
+      - rabbitmq
+
+  observer:
+    build: ./observer
+    depends_on:
+      - rabbitmq
+    restart: on-failure
+    volumes:
+      - "./observer:/observer"
+    env_file:
+      - observer/app.env
+
+volumes:
+  database_postgres:
