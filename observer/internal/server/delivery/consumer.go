@@ -6,6 +6,7 @@ import (
 	"github.com/shakh9006/rabbitmq-controller/internal/server/models"
 	"github.com/shakh9006/rabbitmq-controller/utils"
 	"github.com/streadway/amqp"
+	"io"
 	"log"
 	"net/http"
 )
@@ -33,7 +34,7 @@ func NewRabbitMQ(connectionURI string) *RabbitMQ {
 	}
 }
 
-func (r *RabbitMQ) ExchangeDeclare(name string, kind string) {
+func (r *RabbitMQ) ExchangeDeclare(name string) {
 	err := r.channel.ExchangeDeclare(
 		name,
 		"direct",
@@ -46,7 +47,7 @@ func (r *RabbitMQ) ExchangeDeclare(name string, kind string) {
 	utils.FailOnError(err, "Failed to declare an exchange")
 }
 
-func (r *RabbitMQ) QueueDeclare(exchangeName string, queType string, key string) amqp.Queue {
+func (r *RabbitMQ) QueueDeclare(exchangeName string) amqp.Queue {
 	q, err := r.channel.QueueDeclare(
 		"",
 		false,
@@ -95,8 +96,8 @@ func (r *RabbitMQ) Register() {
 	defer r.connection.Close()
 	defer r.channel.Close()
 
-	r.ExchangeDeclare(exchangeName, "")
-	errorQueue := r.QueueDeclare(exchangeName, "", "error")
+	r.ExchangeDeclare(exchangeName)
+	errorQueue := r.QueueDeclare(exchangeName)
 	data := r.GetConsumer(errorQueue)
 
 	forever := make(chan bool)
@@ -120,11 +121,18 @@ func (r *RabbitMQ) Register() {
 			}
 
 			if resp.StatusCode == 500 {
-				r.LogMessage(r.channel, fmt.Sprintf("Request with request_id: %s got 500 status code", record.RecordId), "error")
-			} else if resp.StatusCode == 400 {
-				r.LogMessage(r.channel, fmt.Sprintf("Request with request_id: %s not found", record.RecordId), "error")
+				r.LogMessage(r.channel, fmt.Sprintf("Request with request_id: %s internal error", record.RecordId), "error")
+			} else if resp.StatusCode == 404 {
+				r.LogMessage(r.channel, fmt.Sprintf("Request with request_id: %s Not found", record.RecordId), "error")
 			} else if resp.StatusCode == 200 {
-				r.LogMessage(r.channel, fmt.Sprintf("Request successfully received. request_id: %s logged to info", record.RecordId), "info")
+				var response models.Response
+				body, _ := io.ReadAll(resp.Body)
+				if err := json.Unmarshal(body, &response); err != nil {
+					log.Printf("Error while unmarshalling response body: %s", err)
+					r.LogMessage(r.channel, fmt.Sprintf("Error while unmarshalling response body: %s", err), "error")
+					continue
+				}
+				r.LogMessage(r.channel, fmt.Sprintf("Request with request_id: %s received.Number: %s", record.RecordId, response.Number), "info")
 			}
 
 			log.Printf("message: %s", d.Body)

@@ -21,14 +21,14 @@ func (nc *NumberCtrl) GetById(c *gin.Context) {
 	id := c.Param("id")
 
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"status": "fail", "message": "id is empty"})
+		c.JSON(http.StatusNotFound, gin.H{"status": "fail", "message": "id is empty"})
 		return
 	}
 
 	number, err := nc.numberService.GetById(id)
 	if err != nil {
 		if err == customErrs.ErrRowsNotFound {
-			c.JSON(http.StatusBadRequest, gin.H{"status": "fail", "message": "number not found"})
+			c.JSON(http.StatusNotFound, gin.H{"status": "fail", "message": "number not found"})
 			return
 		}
 
