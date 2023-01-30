@@ -6,6 +6,7 @@ import (
 	"github.com/shakh9006/rabbitmq-controller/internal/server/models"
 	"github.com/shakh9006/rabbitmq-controller/utils"
 	"github.com/streadway/amqp"
+	"io"
 	"log"
 	"net/http"
 )
@@ -120,11 +121,18 @@ func (r *RabbitMQ) Register() {
 			}
 
 			if resp.StatusCode == 500 {
-				r.LogMessage(r.channel, fmt.Sprintf("Request with request_id: %s got 500 status code", record.RecordId), "error")
-			} else if resp.StatusCode == 400 {
-				r.LogMessage(r.channel, fmt.Sprintf("Request with request_id: %s not found", record.RecordId), "error")
+				r.LogMessage(r.channel, fmt.Sprintf("Request with request_id: %s internal error", record.RecordId), "error")
+			} else if resp.StatusCode == 404 {
+				r.LogMessage(r.channel, fmt.Sprintf("Request with request_id: %s Not found", record.RecordId), "error")
 			} else if resp.StatusCode == 200 {
-				r.LogMessage(r.channel, fmt.Sprintf("Request successfully received. request_id: %s logged to info", record.RecordId), "info")
+				var response models.Response
+				body, _ := io.ReadAll(resp.Body)
+				if err := json.Unmarshal(body, &response); err != nil {
+					log.Printf("Error while unmarshalling response body: %s", err)
+					r.LogMessage(r.channel, fmt.Sprintf("Error while unmarshalling response body: %s", err), "error")
+					continue
+				}
+				r.LogMessage(r.channel, fmt.Sprintf("Request with request_id: %s received.Number: %s", record.RecordId, response.Number), "info")
 			}
 
 			log.Printf("message: %s", d.Body)
