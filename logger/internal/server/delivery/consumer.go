@@ -12,7 +12,7 @@ const (
 	errorQueueKey  = "error"
 	infoQueueKey   = "info"
 	debugQueueKey  = "debug"
-	allQueueKey    = "logger"
+	allQueueKey    = "all"
 )
 
 type RabbitMQ struct {

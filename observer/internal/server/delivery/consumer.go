@@ -34,7 +34,7 @@ func NewRabbitMQ(connectionURI string) *RabbitMQ {
 	}
 }
 
-func (r *RabbitMQ) ExchangeDeclare(name string, kind string) {
+func (r *RabbitMQ) ExchangeDeclare(name string) {
 	err := r.channel.ExchangeDeclare(
 		name,
 		"direct",
@@ -47,7 +47,7 @@ func (r *RabbitMQ) ExchangeDeclare(name string, kind string) {
 	utils.FailOnError(err, "Failed to declare an exchange")
 }
 
-func (r *RabbitMQ) QueueDeclare(exchangeName string, queType string, key string) amqp.Queue {
+func (r *RabbitMQ) QueueDeclare(exchangeName string) amqp.Queue {
 	q, err := r.channel.QueueDeclare(
 		"",
 		false,
@@ -96,8 +96,8 @@ func (r *RabbitMQ) Register() {
 	defer r.connection.Close()
 	defer r.channel.Close()
 
-	r.ExchangeDeclare(exchangeName, "")
-	errorQueue := r.QueueDeclare(exchangeName, "", "error")
+	r.ExchangeDeclare(exchangeName)
+	errorQueue := r.QueueDeclare(exchangeName)
 	data := r.GetConsumer(errorQueue)
 
 	forever := make(chan bool)
